@@ -37,7 +37,7 @@ class SqliteStorage(BaseStorage):
     def add_row(self, data):
         with self._lock:
             self.cursor.execute('insert into songs values'
-                                '(?, ?, ?, ?, ?, ?);', data)
+                                '(%s);' % ','.join(['?'] * len(data)), data)
             self.conn.commit()
 
     def get_row_count(self):
@@ -48,7 +48,7 @@ class SqliteStorage(BaseStorage):
         filepath = os.path.join(self.STORAGE_ROOT, filename)
         with open(filepath, 'w') as fp:
             writer = csv.writer(fp, delimiter='\t')
-            writer.writerow(['name', 'artist', 'playtime', 'writer',
+            writer.writerow(['id', 'name', 'artist', 'playtime', 'writer',
                              'rhyme', 'lyric_len'])
             self.cursor.execute('select * from songs')
             for line in self.cursor.fetchall():

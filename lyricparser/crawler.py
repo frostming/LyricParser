@@ -82,7 +82,7 @@ class Spider(object):
                 lyrics.get_lyric_writer(lyric),
                 ', '.join(lyrics.get_song_rhyme(lyric, config.RHYME_NUM)),
                 lyrics.get_lyric_len(lyric))
-            data = (song.name, song.artist, song.playtime,
+            data = (song.id, song.name, song.artist, song.playtime,
                     writer, rhyme, lyric_len)
             self.storage.add_row(data)
 
