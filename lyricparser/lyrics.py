@@ -2,6 +2,7 @@
 """
 Parse lyric data and get the rhyme
 """
+from __future__ import unicode_literals
 import os
 import re
 import collections
@@ -31,9 +32,9 @@ merge_rhyme = {'v'   : 'u',
 p = xpinyin.Pinyin()
 
 # Regular expressions
-DRY_RE = re.compile(u'(^\\[[^]]+\\]|\s)', re.M)
-WRITER_RE = re.compile(u'(?:填词|作词)\\s*[:：]\\s*(.*)')
-HEADER_RE = re.compile(u'[:：]')
+DRY_RE = re.compile(r'(^\[[^]]+\]|\s)', re.M)
+WRITER_RE = re.compile(r'(?:填词|作词)\s*[:：]\s*(.*)')
+HEADER_RE = re.compile(r'[:：]')
 
 
 def get_rhyme(char):
@@ -67,6 +68,7 @@ def get_song_rhyme(lyric, return_num=1):
     ignore it.
     """
     # Discard None values
+    if not lyric: return []
     count = collections.Counter(
         filter(None, (get_line_rhyme(line) for line in lyric.splitlines())))
     rv = count.most_common(return_num)
@@ -79,9 +81,11 @@ def get_lyric_len(lyric):
     """Get character number of dry lyrics, that is, remove any whitespaces
     and duplicated lines.
     """
+    if not lyric:
+        return 0
     rv = 0
     # Create a set to store the counted lines
-    temp = {}
+    temp = set()
     for line in lyric.splitlines():
         line = DRY_RE.sub('', line)
         if HEADER_RE.search(line) is not None:
@@ -95,6 +99,7 @@ def get_lyric_len(lyric):
 
 def get_lyric_writer(lyric):
     """Guess the writer of a lyric"""
+    if not lyric: return None
     rv = WRITER_RE.findall(lyric)
     if rv:
         return rv[0]
