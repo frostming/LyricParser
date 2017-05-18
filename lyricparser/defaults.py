@@ -20,15 +20,18 @@ class Config(object):
         self.load_from_dict(d)
 
     def load_from_envs(self, prefix='LYRIC'):
-        for k in self.__dict__:
+        for k in Config.__dict__:
+            if not k.isupper():
+                continue
             env_name = ('%s_%s' % (prefix, k)).upper()
             if os.getenv(env_name, None) is not None:
-                self.__dict__[k] = os.environ[env_name]
+                typ = type(Config.__dict__[k])
+                self.__dict__[k] = typ(os.environ[env_name])
 
     def load_from_dict(self, obj):
-        for k, v in d.iteritems():
-            if k in self.__dict__:
-                self.__dict__[k] = v
+        for k, v in obj.iteritems():
+            if k.upper() in Config.__dict__:
+                self.__dict__[k.upper()] = v
 
 
 config = Config()

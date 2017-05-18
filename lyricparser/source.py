@@ -6,6 +6,8 @@ import requests
 from bs4 import BeautifulSoup
 from .defaults import config
 from collections import namedtuple
+from .lyrics import LyricParser
+import langdetect
 
 
 class BaseSource(object):
@@ -14,6 +16,7 @@ class BaseSource(object):
 
     def __init__(self):
         self.session = requests.session()
+        self.lyric_parser = LyricParser()
 
     @abc.abstractmethod
     def get_chinese_playlists(self):
@@ -55,6 +58,17 @@ class NetEaseCloudSource(BaseSource):
                     pass
             payload['offset'] += 35
 
+    def is_chinese_song(self, song):
+        """Check if the song is Chinese.
+        Either song name or artist is Chinese.
+        """
+        for text in (song.name, song.artist):
+            try:
+                return langdetect.detect(text).startswith('zh')
+            except Exception:
+                # Do not drop song
+                return True
+
     def get_songs_in_playlist(self, pl_id):
         """Get the songs contained in given playlist.
 
@@ -68,7 +82,9 @@ class NetEaseCloudSource(BaseSource):
             name = song['name']
             artist = '/'.join(ar['name'] for ar in song['artists'])
             playtime = song['bMusic']['playTime']
-            yield self.SONG_STRUCT(id, name, artist, playtime)
+            song = self.SONG_STRUCT(id, name, artist, playtime)
+            if self.is_chinese_song(song):
+                yield song
 
     def get_song_lyric(self, song_id):
         """Get the lyric of a song.
@@ -78,7 +94,12 @@ class NetEaseCloudSource(BaseSource):
         """
         url = self.API_ROOT + '/song/lyric?os=pc&id=%s&lv=-1' % song_id
         r = self.session.get(url)
+        lyric = None
         try:
-            return r.json()['lrc']['lyric']
+            lyric = r.json()['lrc']['lyric']
         except Exception:
-            return None
+            return ('', '', 0)
+        self.lyric_parser.parse_lyric(lyric)
+        return (self.lyric_parser.writer,
+                ', '.join(self.lyric_parser.get_song_rhyme()),
+                self.lyric_parser.get_dry_length())

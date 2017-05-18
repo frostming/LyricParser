@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import os
 import csv
+import sys
 import sqlite3
 import threading
-import io
 
 
 class BaseStorage(object):
@@ -46,7 +46,9 @@ class SqliteStorage(BaseStorage):
 
     def to_excel(self, filename):
         filepath = os.path.join(self.STORAGE_ROOT, filename)
-        with open(filepath, 'w') as fp:
+        with open(filepath, 'wb') as fp:
+            if sys.platform[:3] == 'win':
+                fp.write(u'\ufeff'.encode('utf-8'))
             writer = csv.writer(fp, delimiter='\t')
             writer.writerow(['id', 'name', 'artist', 'playtime', 'writer',
                              'rhyme', 'lyric_len'])
