@@ -7,7 +7,7 @@ import threading
 
 
 class BaseStorage(object):
-    STORAGE_ROOT = os.path.join(os.path.dirname(__file__), '../storage')
+    STORAGE_ROOT = os.path.join(os.path.dirname(__file__), '../data')
     if not os.path.isdir(STORAGE_ROOT):
         os.mkdir(STORAGE_ROOT)
 
@@ -18,6 +18,7 @@ class SqliteStorage(BaseStorage):
         kwargs.setdefault('check_same_thread', False)
         self.conn = sqlite3.connect(self.filepath, *args, **kwargs)
         self.cursor = self.conn.cursor()
+        self.headers = None
         self._lock = threading.RLock()
 
     def __del__(self):
@@ -32,6 +33,7 @@ class SqliteStorage(BaseStorage):
         table_cmd = ', '.join(' '.join(col) for col in columns)
         self.cursor.execute('create table songs(%s);' % table_cmd)
         self.conn.commit()
+        self.headers = [col[0] for col in columns]
         self._lock.release()
 
     def add_row(self, data):
@@ -45,13 +47,33 @@ class SqliteStorage(BaseStorage):
         return self.cursor.fetchone()[0]
 
     def to_excel(self, filename):
-        filepath = os.path.join(self.STORAGE_ROOT, filename)
-        with open(filepath, 'wb') as fp:
-            if sys.platform[:3] == 'win':
-                fp.write(u'\ufeff'.encode('utf-8'))
-            writer = csv.writer(fp, delimiter='\t')
-            writer.writerow(['id', 'name', 'artist', 'playtime', 'writer',
-                             'rhyme', 'lyric_len'])
-            self.cursor.execute('select * from songs')
-            for line in self.cursor.fetchall():
-                writer.writerow([unicode(v).encode('utf-8') for v in line])
+        csv_storage = CsvStorage(filename, delimiter='\t')
+        csv_storage.init_storage(self.headers)
+        self.cursor.execute('select * from songs')
+        for line in self.cursor.fetchall():
+            csv_storage.add_row(line)
+
+
+class CsvStorage(BaseStorage):
+    def __init__(self, filename, dialect='excel', **kwargs):
+        self.filepath = os.path.join(self.STORAGE_ROOT, filename)
+        self.fp = open(self.filepath, 'wb')
+        # Add BOM on Windows
+        if sys.platform[:3] == 'win':
+            self.fp.write(u'\ufeff'.encode('utf-8'))
+        self.writer = csv.writer(fp, dialect, **kwargs)
+        self.headers = None
+        self._lock = RLock()
+
+    def __del__(self):
+        self.fp.close()
+
+    def init_storage(self, columns):
+        with self._lock:
+            self.writer.writerow([col[0] for col in columns])
+            self.headers = [col[0] for col in columns]
+
+    def add_row(self, data):
+        with self._lock:
+            data = [unicode(v).encode('utf-8') for v in data]
+            self.writer.writerow(data)
